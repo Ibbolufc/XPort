@@ -219,6 +219,13 @@ if(CHIAKI_LIB_FETCH_DEPS)
 	set(OPUS_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
 	set(OPUS_INSTALL_PKG_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
 	set(OPUS_INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
+	if(MSVC AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+		# clang-cl: opus's CMake treats it as MSVC and compiles its SSE4.1/AVX2 kernels without
+		# -msse4.1/-mavx2, which clang rejects. Those kernels mainly speed up the encoder
+		# (microphone); decoding is unaffected, and SSE/SSE2 (x64 baseline) stay on.
+		set(OPUS_X86_MAY_HAVE_SSE4_1 OFF CACHE BOOL "" FORCE)
+		set(OPUS_X86_MAY_HAVE_AVX2 OFF CACHE BOOL "" FORCE)
+	endif()
 	
 	FetchContent_Declare(
 		opus
