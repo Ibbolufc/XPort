@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: build-xbox-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # Phase 0: the shared Remote Play library must build and pass its unit tests with the

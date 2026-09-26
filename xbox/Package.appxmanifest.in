@@ -2,11 +2,14 @@
 <!-- Generated into the build tree by xbox/CMakeLists.txt; edit this template, not the copy. -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-  IgnorableNamespaces="uap">
+  IgnorableNamespaces="uap mp">
 
   <!-- Publisher must equal the subject of the signing certificate (see xbox/build.ps1). -->
   <Identity Name="XPort" Publisher="@XPORT_PUBLISHER@" Version="@XPORT_APPX_VERSION@" ProcessorArchitecture="x64" />
+  <!-- Unused on Xbox, but required by the Visual Studio C++ UWP packaging targets (APPX1673). -->
+  <mp:PhoneIdentity PhoneProductId="17c1b401-96a7-4626-b33a-8c3d667be89d" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
     <DisplayName>XPort</DisplayName>
