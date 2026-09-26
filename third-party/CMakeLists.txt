@@ -160,6 +160,9 @@ if(CHIAKI_LIB_FETCH_DEPS)
 		SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c  # Name it json-c so includes work
 	)
 	FetchContent_MakeAvailable(jsonc)
+	# json.h is generated into the json-c build dir; place it beside the other headers so
+	# <json-c/json.h> resolves (used by the unit tests).
+	configure_file("${jsonc_BINARY_DIR}/json.h" "${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c/json.h" COPYONLY)
 	
 	# Export include directory for chiaki-lib to use
 	# The source is now in _deps/json-c, so parent dir allows #include <json-c/...>
