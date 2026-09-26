@@ -144,7 +144,14 @@ if(CHIAKI_LIB_FETCH_DEPS)
 	set(BUILD_APPS OFF CACHE BOOL "" FORCE)
 	set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 	set(DISABLE_WERROR ON CACHE BOOL "" FORCE)
-	
+	# curl (configured above) caches check_type_size(ssize_t) under the same variable json-c
+	# uses. On MSVC that check fails, and json-c would then skip its own MSVC check
+	# (SSIZE_T from BaseTsd.h) and hit "#error Unable to determine size of ssize_t".
+	unset(HAVE_SIZEOF_SSIZE_T CACHE)
+	unset(SIZEOF_SSIZE_T CACHE)
+	unset(HAVE_SIZEOF_SSIZE_T)
+	unset(SIZEOF_SSIZE_T)
+
 	FetchContent_Declare(
 		jsonc
 		GIT_REPOSITORY https://github.com/json-c/json-c.git
