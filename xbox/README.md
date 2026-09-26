@@ -62,5 +62,5 @@ The last few lines are also shown on screen.
 | `src/NetProbe.*` | Phase 1 network spike: PS4/PS5 discovery broadcast with Winsock |
 | `src/Log.*` | File + debugger logging |
 | `Package.appxmanifest.in` | Package identity, device families (`Windows.Universal`, `Windows.Xbox`), capabilities |
-| `Assets/` | Tile and splash images (placeholders until the XPort logo lands) |
+| `Assets/` | Tile and splash images, generated from the XPort logo (`xport-logo.png`) |
 | `build.ps1` | Configure / build / package / sign |

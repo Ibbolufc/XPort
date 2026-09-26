@@ -1,3 +1,5 @@
+<p align="center"><img src="xport-logo.png" alt="XPort logo" width="320" /></p>
+
 # XPort
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSES/AGPL-3.0-only-OpenSSL.txt)
