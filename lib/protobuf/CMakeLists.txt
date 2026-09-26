@@ -1,8 +1,8 @@
 
 find_program(PROTOC protoc)
 
-if(ANDROID OR NOT PROTOC)
-	# No system protoc (always the case for Android, common on Windows/Xbox dev machines):
+if(NOT PROTOC)
+	# No system protoc (common on Windows/Xbox dev machines):
 	# fall back to Python's grpc_tools.protoc (pip install grpcio-tools)
 	if(NOT PROTOC AND PYTHON_EXECUTABLE)
 		execute_process(

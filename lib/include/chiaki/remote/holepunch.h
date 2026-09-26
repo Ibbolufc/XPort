@@ -166,7 +166,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_holepunch_generate_client_device_uid(
  *
  * **IMPORTANT**: The OAuth2 token must fulfill the following requirements:
  * - It must be a valid PSN OAuth2 token, ideally refreshed before calling this function
- *   (see `gui/include/psnaccountid.h`)
+ *   (PSN sign-in moves into lib/ in XPort Phase 7; see ROADMAP.md)
  * - It must be authorized for the following scopes:
  *   - `psn:clientapp`
  *   - `referenceDataService:countryConfig.read`

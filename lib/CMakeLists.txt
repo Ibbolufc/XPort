@@ -106,11 +106,6 @@ set(SOURCE_FILES
 		src/remote/rudp.c
 		src/remote/rudpsendbuffer.c)
 
-if(IOS)
-	list(APPEND HEADER_FILES include/chiaki/ios_bridge_helpers.h)
-	list(APPEND SOURCE_FILES src/ios_bridge_helpers.c)
-endif()
-
 if(CHIAKI_ENABLE_FFMPEG_DECODER)
 	list(APPEND HEADER_FILES include/chiaki/ffmpegdecoder.h)
 	list(APPEND SOURCE_FILES src/ffmpegdecoder.c)
@@ -149,11 +144,8 @@ if(WIN32)
 	target_link_libraries(chiaki-lib wsock32 ws2_32 bcrypt iphlpapi)
 endif()
 
-if(APPLE AND NOT IOS)
+if(APPLE)
 	target_link_libraries(chiaki-lib "-framework CoreServices")
-endif()
-if(IOS)
-	target_link_libraries(chiaki-lib "-framework Security" "-framework Foundation")
 endif()
 
 target_include_directories(chiaki-lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -163,7 +155,6 @@ target_link_libraries(chiaki-lib Threads::Threads)
 
 if(CHIAKI_LIB_FETCH_DEPS)
 	# json-c and miniupnpc built via FetchContent in third-party/CMakeLists.txt
-	# RUDP is always enabled on Android/iOS
 	# Link against targets created by FetchContent
 	# json-c target is named "json-c" when BUILD_SHARED_LIBS=OFF (which we set)
 	target_link_libraries(chiaki-lib json-c)
@@ -237,16 +228,14 @@ if(CHIAKI_ENABLE_TESTS)
 	add_executable(holepunch-test include/chiaki/remote/holepunch.h src/remote/holepunch-test.c)
 	target_link_libraries(holepunch-test chiaki-lib)
 
-	if(NOT ANDROID AND NOT IOS)
-		add_executable(cloudcatalog-test test_cloudcatalog/cloudcatalog-test.c)
-		target_link_libraries(cloudcatalog-test chiaki-lib)
+	add_executable(cloudcatalog-test test_cloudcatalog/cloudcatalog-test.c)
+	target_link_libraries(cloudcatalog-test chiaki-lib)
 
-		add_executable(apollo-fallback-test test_cloudcatalog/apollo-fallback-test.c)
-		target_link_libraries(apollo-fallback-test chiaki-lib)
-		target_include_directories(apollo-fallback-test PRIVATE src)
+	add_executable(apollo-fallback-test test_cloudcatalog/apollo-fallback-test.c)
+	target_link_libraries(apollo-fallback-test chiaki-lib)
+	target_include_directories(apollo-fallback-test PRIVATE src)
 
-		add_executable(cloudsession-probe test_cloudsession/cloudsession-probe.c)
-		target_link_libraries(cloudsession-probe chiaki-lib)
-		target_include_directories(cloudsession-probe PRIVATE src)
-	endif()
+	add_executable(cloudsession-probe test_cloudsession/cloudsession-probe.c)
+	target_link_libraries(cloudsession-probe chiaki-lib)
+	target_include_directories(cloudsession-probe PRIVATE src)
 endif()

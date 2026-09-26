@@ -66,28 +66,8 @@ if (NOT CHIAKI_IS_SWITCH)
 		set(CURL_DISABLE_INSTALL ON)
 		set(HTTP_ONLY ON)
 		set(ENABLE_WEBSOCKETS ON)
-		if(IOS)
-			# iOS: Use Apple's native Secure Transport for curl SSL.
-			# This uses the iOS system trust store (managed by Apple, auto-updated via
-			# iOS security patches). No bundled CA cert file needed.
-			# Note: chiaki-lib still uses mbedTLS for its own crypto (AES/SHA), which
-			# is completely separate from curl's SSL backend.
-			set(CURL_USE_SECTRANSP ON CACHE BOOL "Use Secure Transport for curl on iOS" FORCE)
-			set(CURL_USE_LIBSSH2 OFF CACHE BOOL "Disable libssh2" FORCE)
-		elseif(ANDROID AND CHIAKI_LIB_ENABLE_MBEDTLS)
-			# Android: Use mbedTLS for curl SSL (no native SSL API available from C).
-			# Requires CA cert bundle set via CHIAKI_CA_BUNDLE env var at runtime.
-			set(CURL_USE_MBEDTLS ON CACHE BOOL "Use mbedTLS for curl" FORCE)
-			set(CURL_USE_LIBSSH2 OFF CACHE BOOL "Disable libssh2" FORCE)
-			# mbedTLS was fetched via FetchContent in root CMakeLists.txt before this
-			# Set include/library paths for curl to find mbedTLS
-			if(mbedtls_SOURCE_DIR AND mbedtls_BINARY_DIR)
-				set(MBEDTLS_INCLUDE_DIR "${mbedtls_SOURCE_DIR}/include" CACHE PATH "mbedTLS include directory" FORCE)
-				set(MBEDTLS_LIBRARY "${mbedtls_BINARY_DIR}/library/libmbedtls.a" CACHE FILEPATH "mbedtls library" FORCE)
-				set(MBEDX509_LIBRARY "${mbedtls_BINARY_DIR}/library/libmbedx509.a" CACHE FILEPATH "mbedx509 library" FORCE)
-				set(MBEDCRYPTO_LIBRARY "${mbedtls_BINARY_DIR}/library/libmbedcrypto.a" CACHE FILEPATH "mbedcrypto library" FORCE)
-			endif()
-		elseif(WIN32)
+		if(WIN32)
+			# Windows / Xbox: Schannel, i.e. the system trust store (no CA bundle needed)
 			set(USE_SSLEAY ON)
 			set(CURL_USE_SCHANNEL ON)
 		endif()
@@ -104,31 +84,8 @@ if (NOT CHIAKI_IS_SWITCH)
 			set(Libidn2_FOUND ON)
 		endif()
 		add_subdirectory(curl)
-		# curl's check_function_exists(_fseeki64) can succeed on some Apple toolchains even
-		# though _fseeki64/__int64 are MSVC-only; formdata.c then fails to compile for iOS.
-		# Do not edit the curl submodule — strip the bogus #define from the generated header.
-		if(IOS)
-			set(_xport_curl_config "${CMAKE_CURRENT_BINARY_DIR}/curl/lib/curl_config.h")
-			if(EXISTS "${_xport_curl_config}")
-				file(READ "${_xport_curl_config}" _xport_curl_config_contents)
-				string(REPLACE "#define HAVE__FSEEKI64 1"
-					"/* #undef HAVE__FSEEKI64 (iOS: not MSVC; use fseeko path in formdata.c) */"
-					_xport_curl_config_contents "${_xport_curl_config_contents}")
-				file(WRITE "${_xport_curl_config}" "${_xport_curl_config_contents}")
-			endif()
-			unset(_xport_curl_config)
-			unset(_xport_curl_config_contents)
-		endif()
 		# Exported library is CURL::libcurl_static
 	endif()
-endif()
-
-if(CHIAKI_ENABLE_STEAM_SHORTCUT)
-	add_subdirectory(cpp-steam-tools)
-endif()
-
-if(CHIAKI_ENABLE_STEAMWORKS)
-	add_subdirectory(steamworks)
 endif()
 
 if(CHIAKI_LIB_FETCH_DEPS)
