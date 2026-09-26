@@ -1,0 +1,76 @@
+name: Build XPort (Xbox)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-xbox-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Phase 0: the shared Remote Play library must build and pass its unit tests with the
+  # MSVC ABI (clang-cl), the toolchain family the UWP/Xbox app is built with.
+  lib-windows-clang-cl:
+    name: lib + unit tests (Windows x64, clang-cl)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Init required submodules
+        shell: bash
+        run: |
+          git submodule update --init --depth 1 \
+            test/munit third-party/nanopb third-party/jerasure third-party/gf-complete third-party/curl
+          git apply --ignore-whitespace --verbose --directory=third-party/gf-complete scripts/windows-vc/gf-complete.patch
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install protobuf tooling (nanopb generator + protoc via grpcio-tools)
+        run: python -m pip install "protobuf<4" "grpcio-tools<1.49"
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
+        run: >
+          cmake -S . -B build-lib -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          -DCHIAKI_ENABLE_CLI=OFF -DCHIAKI_ENABLE_FFMPEG_DECODER=OFF
+          -DCHIAKI_LIB_FETCH_DEPS=ON
+          -DCHIAKI_LIB_ENABLE_MBEDTLS=ON -DCHIAKI_LIB_MBEDTLS_EXTERNAL_PROJECT=ON
+
+      - name: Build
+        run: cmake --build build-lib --target chiaki-lib chiaki-unit
+
+      - name: Unit tests
+        run: build-lib\test\chiaki-unit.exe
+
+  # Phase 1: minimal UWP app shell, packaged and signed for Xbox Dev Mode sideloading.
+  xbox-app:
+    name: Xbox app package (UWP x64)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build + package
+        shell: pwsh
+        run: ./xbox/build.ps1 package -Config Release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XPort-xbox-x64
+          path: |
+            build-xbox/AppPackages/**/*.msix
+            build-xbox/AppPackages/**/*.appx
+            build-xbox/AppPackages/**/*.cer
+          if-no-files-found: error

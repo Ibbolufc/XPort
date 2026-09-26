@@ -58,7 +58,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h> // strcasecmp
+#include "compat_strings.h" // strcasecmp
 
 #define WARNING_EXPIRED \
 	"Your session has expired. Please log in again to see your owned games."

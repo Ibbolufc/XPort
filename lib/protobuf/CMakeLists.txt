@@ -1,8 +1,9 @@
 
 find_program(PROTOC protoc)
 
-if(ANDROID)
-	# Android: Try Python's grpc_tools.protoc if system protoc not found
+if(NOT PROTOC)
+	# No system protoc (common on Windows/Xbox dev machines):
+	# fall back to Python's grpc_tools.protoc (pip install grpcio-tools)
 	if(NOT PROTOC AND PYTHON_EXECUTABLE)
 		execute_process(
 			COMMAND "${PYTHON_EXECUTABLE}" -c "import grpc_tools.protoc; print('found')"
@@ -32,10 +33,7 @@ if(ANDROID)
 
 	set(GEN_PREFIX "")
 else()
-	# Non-Android: Original logic - require system protoc
-	if(NOT PROTOC)
-		message(FATAL_ERROR "Could not find protoc")
-	endif()
+	# System protoc found
 
 	add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/takion.pb"
 			COMMAND "${PROTOC}" "-o${CMAKE_CURRENT_BINARY_DIR}/takion.pb" "${CMAKE_CURRENT_SOURCE_DIR}/takion.proto" "-I${CMAKE_CURRENT_SOURCE_DIR}"

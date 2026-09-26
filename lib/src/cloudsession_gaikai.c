@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <strings.h>
+#include "compat_strings.h"
 #include <time.h>
 
 #define GK_BASE        "https://cc.prod.gaikai.com/v1"

@@ -9,7 +9,7 @@
 #include <string.h>
 
 static const char doc[] =
-	"CLI for pylux"
+	"CLI for XPort"
 	"\v"
 	"Supported commands are:\n"
 	"  discover    Discover Consoles.\n"

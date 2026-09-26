@@ -8,10 +8,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h> // strncasecmp
+#include "compat_strings.h" // strncasecmp
 
 #define CHIAKI_HTTP_DEFAULT_TIMEOUT_MS 30000L
-#define CHIAKI_HTTP_USER_AGENT "pylux-cloudcatalog/1.0"
+#define CHIAKI_HTTP_USER_AGENT "xport-cloudcatalog/1.0"
 
 typedef struct grow_buffer_t
 {
@@ -40,7 +40,7 @@ static size_t grow_buffer_write(void *ptr, size_t size, size_t nmemb, void *user
 
 // Mask the value following each credential key in buf (in place). Handles the forms
 // "npsso=XYZ", "Authorization: Bearer XYZ", and JSON "access_token":"XYZ". Verbose HTTP
-// logs are meant to be shared for debugging (e.g. ios/logs/pylux.log streams at
+// logs are meant to be shared for debugging (e.g. xport.log from the Xbox app at
 // CHIAKI_LOG_ALL in Debug builds), so credentials must never appear in them verbatim.
 static void redact_credentials(char *buf, size_t len)
 {

@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
+#include "compat_strings.h"
 
 // ---------------------------------------------------------------------------
 // Tiny string-keyed maps backed by json_object (last-write-wins like QMap):

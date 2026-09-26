@@ -66,28 +66,8 @@ if (NOT CHIAKI_IS_SWITCH)
 		set(CURL_DISABLE_INSTALL ON)
 		set(HTTP_ONLY ON)
 		set(ENABLE_WEBSOCKETS ON)
-		if(IOS)
-			# iOS: Use Apple's native Secure Transport for curl SSL.
-			# This uses the iOS system trust store (managed by Apple, auto-updated via
-			# iOS security patches). No bundled CA cert file needed.
-			# Note: chiaki-lib still uses mbedTLS for its own crypto (AES/SHA), which
-			# is completely separate from curl's SSL backend.
-			set(CURL_USE_SECTRANSP ON CACHE BOOL "Use Secure Transport for curl on iOS" FORCE)
-			set(CURL_USE_LIBSSH2 OFF CACHE BOOL "Disable libssh2" FORCE)
-		elseif(ANDROID AND CHIAKI_LIB_ENABLE_MBEDTLS)
-			# Android: Use mbedTLS for curl SSL (no native SSL API available from C).
-			# Requires CA cert bundle set via CHIAKI_CA_BUNDLE env var at runtime.
-			set(CURL_USE_MBEDTLS ON CACHE BOOL "Use mbedTLS for curl" FORCE)
-			set(CURL_USE_LIBSSH2 OFF CACHE BOOL "Disable libssh2" FORCE)
-			# mbedTLS was fetched via FetchContent in root CMakeLists.txt before this
-			# Set include/library paths for curl to find mbedTLS
-			if(mbedtls_SOURCE_DIR AND mbedtls_BINARY_DIR)
-				set(MBEDTLS_INCLUDE_DIR "${mbedtls_SOURCE_DIR}/include" CACHE PATH "mbedTLS include directory" FORCE)
-				set(MBEDTLS_LIBRARY "${mbedtls_BINARY_DIR}/library/libmbedtls.a" CACHE FILEPATH "mbedtls library" FORCE)
-				set(MBEDX509_LIBRARY "${mbedtls_BINARY_DIR}/library/libmbedx509.a" CACHE FILEPATH "mbedx509 library" FORCE)
-				set(MBEDCRYPTO_LIBRARY "${mbedtls_BINARY_DIR}/library/libmbedcrypto.a" CACHE FILEPATH "mbedcrypto library" FORCE)
-			endif()
-		elseif(WIN32)
+		if(WIN32)
+			# Windows / Xbox: Schannel, i.e. the system trust store (no CA bundle needed)
 			set(USE_SSLEAY ON)
 			set(CURL_USE_SCHANNEL ON)
 		endif()
@@ -104,37 +84,14 @@ if (NOT CHIAKI_IS_SWITCH)
 			set(Libidn2_FOUND ON)
 		endif()
 		add_subdirectory(curl)
-		# curl's check_function_exists(_fseeki64) can succeed on some Apple toolchains even
-		# though _fseeki64/__int64 are MSVC-only; formdata.c then fails to compile for iOS.
-		# Do not edit the curl submodule — strip the bogus #define from the generated header.
-		if(IOS)
-			set(_pylux_curl_config "${CMAKE_CURRENT_BINARY_DIR}/curl/lib/curl_config.h")
-			if(EXISTS "${_pylux_curl_config}")
-				file(READ "${_pylux_curl_config}" _pylux_curl_config_contents)
-				string(REPLACE "#define HAVE__FSEEKI64 1"
-					"/* #undef HAVE__FSEEKI64 (iOS: not MSVC; use fseeko path in formdata.c) */"
-					_pylux_curl_config_contents "${_pylux_curl_config_contents}")
-				file(WRITE "${_pylux_curl_config}" "${_pylux_curl_config_contents}")
-			endif()
-			unset(_pylux_curl_config)
-			unset(_pylux_curl_config_contents)
-		endif()
 		# Exported library is CURL::libcurl_static
 	endif()
 endif()
 
-if(CHIAKI_ENABLE_STEAM_SHORTCUT)
-	add_subdirectory(cpp-steam-tools)
-endif()
-
-if(CHIAKI_ENABLE_STEAMWORKS)
-	add_subdirectory(steamworks)
-endif()
-
-if(ANDROID OR IOS)
+if(CHIAKI_LIB_FETCH_DEPS)
 	##################
-	# json-c for Android/iOS (using FetchContent for proper build integration)
-	# Always built since RUDP is always enabled for mobile
+	# json-c (FetchContent; see CHIAKI_LIB_FETCH_DEPS)
+	# RUDP/holepunch always needs it
 	##################
 	include(FetchContent)
 	
@@ -144,7 +101,14 @@ if(ANDROID OR IOS)
 	set(BUILD_APPS OFF CACHE BOOL "" FORCE)
 	set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 	set(DISABLE_WERROR ON CACHE BOOL "" FORCE)
-	
+	# curl (configured above) caches check_type_size(ssize_t) under the same variable json-c
+	# uses. On MSVC that check fails, and json-c would then skip its own MSVC check
+	# (SSIZE_T from BaseTsd.h) and hit "#error Unable to determine size of ssize_t".
+	unset(HAVE_SIZEOF_SSIZE_T CACHE)
+	unset(SIZEOF_SSIZE_T CACHE)
+	unset(HAVE_SIZEOF_SSIZE_T)
+	unset(SIZEOF_SSIZE_T)
+
 	FetchContent_Declare(
 		jsonc
 		GIT_REPOSITORY https://github.com/json-c/json-c.git
@@ -153,13 +117,16 @@ if(ANDROID OR IOS)
 		SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c  # Name it json-c so includes work
 	)
 	FetchContent_MakeAvailable(jsonc)
+	# json.h is generated into the json-c build dir; place it beside the other headers so
+	# <json-c/json.h> resolves (used by the unit tests).
+	configure_file("${jsonc_BINARY_DIR}/json.h" "${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c/json.h" COPYONLY)
 	
 	# Export include directory for chiaki-lib to use
 	# The source is now in _deps/json-c, so parent dir allows #include <json-c/...>
 	set(JSONC_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_deps" CACHE PATH "json-c include directory" FORCE)
 	
 	##################
-	# miniupnpc for Android (using FetchContent for proper build integration)
+	# miniupnpc (FetchContent)
 	##################
 	# Configure miniupnpc build options before fetching
 	set(UPNPC_BUILD_STATIC ON CACHE BOOL "" FORCE)
@@ -203,7 +170,7 @@ if(ANDROID OR IOS)
 	set(MINIUPNPC_BUILD_DIR "${miniupnp_BINARY_DIR}" CACHE PATH "miniupnpc build directory" FORCE)
 	
 	##################
-	# opus for Android (using FetchContent for proper build integration)
+	# opus (FetchContent)
 	# Required for PSCloud audio decoding (unitized Opus format)
 	##################
 	# Configure opus build options before fetching
@@ -212,6 +179,13 @@ if(ANDROID OR IOS)
 	set(OPUS_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
 	set(OPUS_INSTALL_PKG_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
 	set(OPUS_INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
+	if(MSVC AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+		# clang-cl: opus's CMake treats it as MSVC and compiles its SSE4.1/AVX2 kernels without
+		# -msse4.1/-mavx2, which clang rejects. Those kernels mainly speed up the encoder
+		# (microphone); decoding is unaffected, and SSE/SSE2 (x64 baseline) stay on.
+		set(OPUS_X86_MAY_HAVE_SSE4_1 OFF CACHE BOOL "" FORCE)
+		set(OPUS_X86_MAY_HAVE_AVX2 OFF CACHE BOOL "" FORCE)
+	endif()
 	
 	FetchContent_Declare(
 		opus

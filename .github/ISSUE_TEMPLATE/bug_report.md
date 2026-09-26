@@ -11,7 +11,7 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **Debug Log**
-Please attach a log with verbose logging enabled.
+Please attach `xport.log` (Device Portal: File explorer > LocalAppData > XPort_... > LocalState).
 
 **To Reproduce**
 Steps to reproduce the behavior:
@@ -26,11 +26,12 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. SteamOS]
- - Version [e.g. 22]
- - Device [e.g. Steam Deck]
- - chiaki-ng Version [e.g. 1.6.2]
+**Setup (please complete the following information):**
+ - Xbox: [e.g. Series X / Series S]
+ - Dev Mode app type: [Game / App]
+ - XPort version: [e.g. 0.1.0 or CI run link]
+ - Console: [PS4 / PS4 Pro / PS5] and system software version
+ - Network: [both wired / Xbox on Wi-Fi / ...]
 
 **Additional context**
 Add any other context about the problem here.

@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
+#include "compat_strings.h"
 
 const char *cc_json_str(struct json_object *obj, const char *key)
 {
