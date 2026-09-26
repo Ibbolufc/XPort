@@ -6,8 +6,8 @@ it.** The Xbox app only maps platform inputs and outputs (controllers, video, au
 
 | Phase | Goal | Status |
 |---|---|---|
-| 0 | `lib/` builds and passes its unit tests with the MSVC ABI (clang-cl) | **in progress** (CI job `lib-windows-clang-cl`) |
-| 1 | Minimal UWP app launches on Xbox (**Milestone 1**) | **in progress** (CI job `xbox-app`; needs an on-console check) |
+| 0 | `lib/` builds and passes its unit tests with the MSVC ABI (clang-cl) | **done**: 126/126 tests pass on Windows x64 in CI |
+| 1 | Minimal UWP app launches on Xbox (**Milestone 1**) | **built**: signed package from CI; waiting on the on-console check |
 | 2 | `lib/` compiled for UWP and linked into the app | planned |
 | 3 | LAN discovery, wake and registration | planned |
 | 4 | Remote Play session with video | planned |
@@ -26,7 +26,9 @@ MinGW on Windows.
   because pkg-config packages don't exist there.
 - Done: protoc falls back to Python `grpc_tools` when no system `protoc` is installed.
 - Done: fixed `chiaki_ecdh_set_local_key` on mbedTLS (it replaced the given key with a random one).
-- Exit criterion: `chiaki-unit` passes in CI on Windows x64 with clang-cl + mbedTLS.
+- Done: CI build fixes for fetched deps under clang-cl (json-c `SSIZE_T` detection and generated `json.h`,
+  opus SSE4.1/AVX2 kernels disabled for clang-cl).
+- Exit criterion met: `chiaki-unit` passes in CI on Windows x64 with clang-cl + mbedTLS.
 
 ## Phase 1: Milestone 1, a minimal Xbox app
 
