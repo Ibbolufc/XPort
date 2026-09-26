@@ -59,6 +59,7 @@ set(SOURCE_FILES
 		src/takion.c
 		src/senkusha.c
 		src/utils.h
+		src/compat_strings.h
 		src/pb_utils.h
 		src/streamconnection.c
 		src/ecdh.c
@@ -160,7 +161,7 @@ target_include_directories(chiaki-lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/includ
 find_package(Threads REQUIRED)
 target_link_libraries(chiaki-lib Threads::Threads)
 
-if(ANDROID OR IOS)
+if(CHIAKI_LIB_FETCH_DEPS)
 	# json-c and miniupnpc built via FetchContent in third-party/CMakeLists.txt
 	# RUDP is always enabled on Android/iOS
 	# Link against targets created by FetchContent

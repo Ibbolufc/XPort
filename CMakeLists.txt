@@ -1,7 +1,7 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-project(chiaki)
+project(xport)
 
 # Fix for 16 KB page size compatibility (required for Android devices with 16 KB pages)
 # This ensures ELF LOAD segments are aligned to 16 KB boundaries for shared libraries
@@ -36,12 +36,12 @@ endmacro()
 
 option(CHIAKI_ENABLE_TESTS "Enable tests for Chiaki" ON)
 option(CHIAKI_ENABLE_CLI "Enable CLI for Chiaki" ON)
-option(CHIAKI_ENABLE_GUI "Enable Qt GUI" ON)
+option(CHIAKI_ENABLE_GUI "Enable legacy Qt desktop GUI (not part of XPort)" OFF)
 option(CHIAKI_ENABLE_ANDROID "Enable Android (Use only as part of the Gradle Project)" OFF)
 option(CHIAKI_ENABLE_IOS "Enable iOS build (lib only, use from ios/ folder)" OFF)
 option(CHIAKI_ENABLE_BOREALIS "Enable Borealis GUI (For Nintendo Switch or PC)" OFF)
 tri_option(CHIAKI_ENABLE_SETSU "Enable libsetsu for touchpad input from controller" AUTO)
-tri_option(CHIAKI_ENABLE_STEAMDECK_NATIVE "Enable sdeck for native gyro and haptic feedback from Steam Deck" ON)
+tri_option(CHIAKI_ENABLE_STEAMDECK_NATIVE "Enable sdeck for native gyro and haptic feedback from Steam Deck" OFF)
 option(CHIAKI_LIB_ENABLE_OPUS "Use Opus as part of Chiaki Lib" ON)
 tri_option(CHIAKI_ENABLE_SPEEX "Use speex for echo cancelling mic playback" AUTO)
 tri_option(CHIAKI_ENABLE_RUDP "Enable Remote Play over Internet" AUTO)
@@ -57,7 +57,7 @@ option(CHIAKI_LIB_MBEDTLS_EXTERNAL_PROJECT "Fetch Mbed TLS instead of using syst
 option(CHIAKI_LIB_OPENSSL_EXTERNAL_PROJECT "Use OpenSSL as CMake external project" OFF)
 option(CHIAKI_GUI_ENABLE_SDL_GAMECONTROLLER "Use SDL Gamecontroller for Input" ON)
 option(CHIAKI_CLI_ARGP_STANDALONE "Search for standalone argp lib for CLI" OFF)
-option(CHIAKI_ENABLE_STEAM_SHORTCUT "Add ability to create Steam shortcut" ON)
+option(CHIAKI_ENABLE_STEAM_SHORTCUT "Add ability to create Steam shortcut" OFF)
 # Qt WebEngine in GUI: same switch for all platforms; Linux builds force OFF (historically no WebEngine link there).
 option(CHIAKI_ENABLE_GUI_WEBENGINE "Link Qt WebEngineQuick in GUI (PSN can use external browser when OFF)" ON)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -69,12 +69,10 @@ tri_option(CHIAKI_USE_SYSTEM_JERASURE "Use system-provided jerasure instead of s
 tri_option(CHIAKI_USE_SYSTEM_NANOPB "Use system-provided nanopb instead of submodule" AUTO)
 tri_option(CHIAKI_USE_SYSTEM_CURL "Use system-provided curl instead of submodule. Has to be built with experimental WebSocket support!" OFF)
 
-# Pylux semver — single source for packaging (Android, iOS CI archive, macOS App Store bundle, etc.).
-# ios/Pylux.xcodeproj uses MARKETING_VERSION=0.0.0 and CURRENT_PROJECT_VERSION=0 only as local placeholders;
-# CI injects real values from the CHIAKI_VERSION_* lines below at archive time (.github/workflows/deploy-ios.yml).
-set(CHIAKI_VERSION_MAJOR 2)
-set(CHIAKI_VERSION_MINOR 11)
-set(CHIAKI_VERSION_PATCH 4)
+# XPort semver — single source of truth for packaging (the Xbox app package version is derived from it).
+set(CHIAKI_VERSION_MAJOR 0)
+set(CHIAKI_VERSION_MINOR 1)
+set(CHIAKI_VERSION_PATCH 0)
 set(CHIAKI_VERSION ${CHIAKI_VERSION_MAJOR}.${CHIAKI_VERSION_MINOR}.${CHIAKI_VERSION_PATCH})
 
 configure_file(
@@ -82,8 +80,8 @@ configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/lib/include/chiaki/version.h"
 )
 
-set(CPACK_PACKAGE_NAME "pylux")
-set(CPACK_PACKAGE_DESCRIPTION "Remote Play Client")
+set(CPACK_PACKAGE_NAME "xport")
+set(CPACK_PACKAGE_DESCRIPTION "PlayStation Remote Play client for Xbox Series X|S")
 set(CPACK_PACKAGE_VERSION_MAJOR ${CHIAKI_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${CHIAKI_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${CHIAKI_VERSION_PATCH})
@@ -110,6 +108,15 @@ if(CHIAKI_ENABLE_IOS)
 	set(CHIAKI_LIB_MBEDTLS_EXTERNAL_PROJECT ON CACHE BOOL "" FORCE)
 	message(STATUS "iOS build: lib only, mbedTLS, RUDP enabled")
 endif()
+
+# Build json-c, miniupnpc and opus from source (FetchContent) instead of using system/pkg-config
+# packages. Required for MSVC/clang-cl and UWP/Xbox builds, where pkg-config packages don't exist.
+if(ANDROID OR IOS OR MSVC OR CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+	set(CHIAKI_LIB_FETCH_DEPS_DEFAULT ON)
+else()
+	set(CHIAKI_LIB_FETCH_DEPS_DEFAULT OFF)
+endif()
+option(CHIAKI_LIB_FETCH_DEPS "Build json-c, miniupnpc and opus from source via FetchContent" ${CHIAKI_LIB_FETCH_DEPS_DEFAULT})
 
 if(APPLE)
 	if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")
@@ -194,6 +201,8 @@ if(CHIAKI_LIB_ENABLE_MBEDTLS)
 		set(ENABLE_TESTING CACHE INTERNAL OFF)
 		set(ENABLE_PROGRAMS CACHE INTERNAL OFF)
 		set(USE_SHARED_MBEDTLS_LIBRARY CACHE INTERNAL OFF)
+		# Don't let compiler warnings in the fetched mbedTLS sources fail the build (MSVC/clang-cl)
+		set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
 		# Android/iOS: Disable PSA crypto to avoid crypto_sizes.h generation issues
 		# (Switch and other platforms can keep PSA enabled if needed)
 		if(ANDROID OR IOS)

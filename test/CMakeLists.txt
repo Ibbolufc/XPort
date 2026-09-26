@@ -23,6 +23,9 @@ add_executable(chiaki-unit
 target_link_libraries(chiaki-unit chiaki-lib munit)
 if(TARGET PkgConfig::json-c)
 	target_link_libraries(chiaki-unit PkgConfig::json-c)
+elseif(CHIAKI_LIB_FETCH_DEPS)
+	target_link_libraries(chiaki-unit json-c)
+	target_include_directories(chiaki-unit PRIVATE ${JSONC_INCLUDE_DIR})
 endif()
 
 add_test(unit chiaki-unit)

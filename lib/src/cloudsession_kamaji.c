@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <strings.h>
+#include "compat_strings.h"
 
 #define KM_ACCOUNT_BASE "https://ca.account.sony.com/api"
 #define KM_KAMAJI_BASE  "https://psnow.playstation.com/kamaji/api/pcnow/00_09_000"

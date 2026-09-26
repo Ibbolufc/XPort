@@ -126,7 +126,6 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ecdh_set_local_key(ChiakiECDH *ecdh, const 
 #ifdef CHIAKI_LIB_ENABLE_MBEDTLS
 	//https://tls.mbed.org/discussions/generic/publickey-binary-data-in-der
 	// Load keys from buffers (i.e: config file)
-	// TODO test
 
 	// public
 	int r = 0;
@@ -139,9 +138,9 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ecdh_set_local_key(ChiakiECDH *ecdh, const 
 	if(r != 0)
 		return CHIAKI_ERR_UNKNOWN;
 
-	// regen key
-	r = mbedtls_ecdh_gen_public(&ecdh->ctx.grp, &ecdh->ctx.d, &ecdh->ctx.Q, mbedtls_ctr_drbg_random, &ecdh->drbg);
-	if(r != 0)
+	// validate the loaded pair (must not regenerate it, that would discard the given keys)
+	if(mbedtls_ecp_check_pubkey(&ecdh->ctx.grp, &ecdh->ctx.Q) != 0
+		|| mbedtls_ecp_check_privkey(&ecdh->ctx.grp, &ecdh->ctx.d) != 0)
 		return CHIAKI_ERR_UNKNOWN;
 
 	return CHIAKI_ERR_SUCCESS;

@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
+#include "compat_strings.h"
 
 static bool is_americas_classics_region(const char *cc)
 {

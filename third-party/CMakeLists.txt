@@ -108,16 +108,16 @@ if (NOT CHIAKI_IS_SWITCH)
 		# though _fseeki64/__int64 are MSVC-only; formdata.c then fails to compile for iOS.
 		# Do not edit the curl submodule — strip the bogus #define from the generated header.
 		if(IOS)
-			set(_pylux_curl_config "${CMAKE_CURRENT_BINARY_DIR}/curl/lib/curl_config.h")
-			if(EXISTS "${_pylux_curl_config}")
-				file(READ "${_pylux_curl_config}" _pylux_curl_config_contents)
+			set(_xport_curl_config "${CMAKE_CURRENT_BINARY_DIR}/curl/lib/curl_config.h")
+			if(EXISTS "${_xport_curl_config}")
+				file(READ "${_xport_curl_config}" _xport_curl_config_contents)
 				string(REPLACE "#define HAVE__FSEEKI64 1"
 					"/* #undef HAVE__FSEEKI64 (iOS: not MSVC; use fseeko path in formdata.c) */"
-					_pylux_curl_config_contents "${_pylux_curl_config_contents}")
-				file(WRITE "${_pylux_curl_config}" "${_pylux_curl_config_contents}")
+					_xport_curl_config_contents "${_xport_curl_config_contents}")
+				file(WRITE "${_xport_curl_config}" "${_xport_curl_config_contents}")
 			endif()
-			unset(_pylux_curl_config)
-			unset(_pylux_curl_config_contents)
+			unset(_xport_curl_config)
+			unset(_xport_curl_config_contents)
 		endif()
 		# Exported library is CURL::libcurl_static
 	endif()
@@ -131,10 +131,10 @@ if(CHIAKI_ENABLE_STEAMWORKS)
 	add_subdirectory(steamworks)
 endif()
 
-if(ANDROID OR IOS)
+if(CHIAKI_LIB_FETCH_DEPS)
 	##################
-	# json-c for Android/iOS (using FetchContent for proper build integration)
-	# Always built since RUDP is always enabled for mobile
+	# json-c (FetchContent; see CHIAKI_LIB_FETCH_DEPS)
+	# RUDP/holepunch always needs it
 	##################
 	include(FetchContent)
 	
@@ -159,7 +159,7 @@ if(ANDROID OR IOS)
 	set(JSONC_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_deps" CACHE PATH "json-c include directory" FORCE)
 	
 	##################
-	# miniupnpc for Android (using FetchContent for proper build integration)
+	# miniupnpc (FetchContent)
 	##################
 	# Configure miniupnpc build options before fetching
 	set(UPNPC_BUILD_STATIC ON CACHE BOOL "" FORCE)
@@ -203,7 +203,7 @@ if(ANDROID OR IOS)
 	set(MINIUPNPC_BUILD_DIR "${miniupnp_BINARY_DIR}" CACHE PATH "miniupnpc build directory" FORCE)
 	
 	##################
-	# opus for Android (using FetchContent for proper build integration)
+	# opus (FetchContent)
 	# Required for PSCloud audio decoding (unitized Opus format)
 	##################
 	# Configure opus build options before fetching
