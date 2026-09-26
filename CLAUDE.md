@@ -1,65 +1,44 @@
-# Pylux — agent guide
+# XPort — agent guide
 
-Pylux is a cross-platform PS4/PS5 Remote Play + Internet/Cloud Play client (fork of
-[chiaki-ng](https://github.com/streetpea/chiaki-ng)): shared C library (`lib/`), Qt desktop
-(`gui/` — macOS/Windows/Linux/Steam Deck), Android (`android/`), iOS (`ios/`).
+XPort is a PlayStation (PS4/PS5) Remote Play client for **Xbox Series X|S in Developer Mode**, built as an x64 UWP
+app. It is based on [chiaki-ng](https://github.com/streetpea/chiaki-ng): a shared C library (`lib/`) holds the
+Remote Play protocol; `xbox/` is the native UWP frontend. The phased plan and current status are in `ROADMAP.md`.
 
 ## Architecture
-- **DO** put protocol, streaming, catalog, and feature logic in the shared C (`lib/`) so every
-  platform gets it and stays consistent. Platforms only map inputs/outputs (controllers,
-  audio, video, UI).
-- **DON'T** patch shared behavior in one platform. If a fix would need repeating per platform,
-  it belongs in `lib/`.
-- **DO** debug cross-platform discrepancies empirically: capture runtime logs on a working and
-  a broken platform and diff them, and diff suspect files against `upstream/main` (remote is
-  configured).
-- **DON'T** make sweeping edits to upstream-owned Qt files; prefer new files so chiaki-ng
-  fixes stay cherry-pickable.
+- **DO** put protocol, streaming and feature logic in `lib/`. The Xbox app only maps platform inputs/outputs
+  (controllers, video, audio, storage, UI).
+- **DON'T** rewrite protocol code; reuse `lib/`. Keep `lib/` edits minimal and guarded so chiaki-ng fixes stay
+  cherry-pickable (diff suspect files against `upstream/main` when debugging).
+- **DO** consume `lib/` from the Xbox app through its CMake target (`add_subdirectory`), never by compiling lib
+  headers under a different configuration: `ChiakiSession`'s layout depends on lib compile definitions and the
+  `static inline` setters in `session.h` silently write to the wrong offset otherwise.
 
-## Workflow
-- Feature branches off `master`. PRs target **`release/beta`**, which auto-builds and deploys
-  BETA to all stores on merge. `master` deploys to production. **DON'T** push to release
-  branches casually.
+## Toolchain facts
+- UWP needs the MSVC toolchain family. `lib/` is built with **clang-cl** (MSVC ABI); the app with MSVC via the
+  Visual Studio generator and `CMAKE_SYSTEM_NAME=WindowsStore`.
+- MSVC/UCRT lacks POSIX headers: use `lib/src/compat_strings.h` instead of `<strings.h>`; guard other POSIX-only
+  calls with `_WIN32`/`_MSC_VER`.
+- `CHIAKI_LIB_FETCH_DEPS` (default ON for MSVC/WindowsStore) builds json-c, miniupnpc and opus from source.
+- Use **mbedTLS** for lib crypto on Windows/Xbox; curl uses Schannel (system trust store).
 
-## Data handling: title IDs, product IDs, entitlements
-- **DON'T** infer prefix/regex patterns from the ID samples you happen to see. PSN IDs are
-  region- and account-dependent; a pattern that fits one library corrupts matching for others.
-- **DO** match structurally: split on `-`/`_` and drop the region-varying tail, via
-  `cc_stable_key()` in `lib/src/cloudcatalog_merge.c` (see also `normalize_apollo_game` /
-  `normalize_title` there). Extend those helpers; don't add ad-hoc string checks elsewhere.
-
-## Build / run / verify
-- **DO** use the build scripts and read their headers first — they are self-documenting:
-  - macOS (Qt): `./scripts/build-macos.sh arm64 --iterate --skip-deps --ad-hoc
-    --no-credentials-file --skip-notary-keychain --no-steamworks`; run `build-output/Pylux.app`
-    only; logs in `tmp/pylux-macos.log` (`logs` subcommand).
-  - iOS: `./ios/build.sh dev|iterate|launch|logs|stop-logs` (+`PYLUX_FULL_BUILD=1` when the C
-    lib changed). Device logs stream over Wi-Fi into `ios/logs/pylux.log`; app relaunch =
-    capture relaunch.
-  - Android: `android/build.ps1` / `android/build-local.sh`.
-- **DON'T** improvise around the scripts (custom launch paths, alternate log tools, manual
-  bundle surgery, `idevicesyslog`, requiring USB for iOS logs, TERM-ing the iOS log capture —
-  `stop-logs` handles it).
-- **DO** verify changes by running on the real platform and reading its logs; compiling is not
-  verification.
-
-## iOS ↔ C library boundary
-`ChiakiSession`'s memory layout depends on the lib's CMake config; Xcode compiles ObjC/Swift
-without that config, so struct offsets differ between the two sides.
-- **DON'T** call `static inline` chiaki functions that touch struct fields from `ios/Pylux/**`
-  (e.g. the `chiaki_session_set_*` sink/callback setters) — the write lands at the wrong
-  offset and silently no-ops. `ios/build.sh` fails the build on violations
-  (`check_forbidden_inline_setters`).
-- **DO** use the `CHIAKI_EXPORT` `_ex` wrappers in `lib/src/ios_bridge_helpers.c`, adding a
-  wrapper there whenever the lib gains a setter iOS needs, and allocate `ChiakiSession` via
-  `chiaki_session_get_sizeof()`, never `sizeof`.
+## Build / verify
+- Xbox app: `.\xbox\build.ps1` (`configure|build|package|clean`); read its header, it documents deploy and logs.
+- Lib + tests: see README; CI job `lib-windows-clang-cl` is the MSVC-ABI reference.
+- **DO** verify Xbox changes on a real console: install via Device Portal, set app type to **Game**, read
+  `LocalState\xport.log`. Compiling is not verification.
+- This repo is usually edited from Linux where the Windows code can't be compiled: push and use the
+  `Build XPort (Xbox)` workflow as the compile check.
 
 ## How the system works (non-obvious facts to respect)
-- PS5 Remote Play delivers rumble ONLY as DualSense haptic audio: the client must set
-  `enable_dualsense=true` and register a haptics sink (on iOS via
-  `chiaki_session_set_haptics_sink_ex`). Cloud rumble uses classic rumble events — cloud
-  working says nothing about Remote Play.
-- Qt keyboard/controller navigation relies on `Qt::TabFocusAllControls` (gui main.cpp) and
-  dialogs overriding `seedFocus()`; don't add competing `forceActiveFocus` calls.
-- iOS binds the Create/PS controller buttons to system gestures by default;
-  `StreamInput.attachController` claims them with `preferredSystemGestureState = .disabled`.
+- PS5 Remote Play delivers rumble ONLY as DualSense haptic audio: set `enable_dualsense=true` and register a
+  haptics sink, then convert haptics PCM to motor amplitude. Cloud play uses classic rumble events.
+- The Xbox Guide button is reserved by the OS: the PS button is the lib's PS chord (`chiaki_session_set_ps_chord`,
+  OPTIONS+SHARE = Menu+View on Xbox).
+- On Xbox, B raises `BackRequested`; the app must mark it handled or it navigates out.
+- UWP apps must call `IDXGIDevice3::Trim()` on suspend.
+
+## Data handling: title IDs, product IDs, entitlements
+- **DON'T** infer prefix/regex patterns from the ID samples you happen to see; PSN IDs are region- and
+  account-dependent.
+- **DO** match structurally via `cc_stable_key()` in `lib/src/cloudcatalog_merge.c` (see also
+  `normalize_apollo_game` / `normalize_title` there). Extend those helpers; don't add ad-hoc string checks elsewhere.

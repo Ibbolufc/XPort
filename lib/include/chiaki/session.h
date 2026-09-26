@@ -325,15 +325,14 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_session_go_home(ChiakiSession *session);
  * compile with the CALLER's view of the struct layout. ChiakiSession's layout
  * depends on the library's build config (e.g. the embedded ChiakiECDH differs
  * with CHIAKI_LIB_ENABLE_MBEDTLS). Translation units built OUTSIDE the lib's
- * CMake build (the iOS ObjC bridge, Swift via the bridging header) see a
- * DIFFERENT layout: the write lands at the wrong offset and silently no-ops.
- * 2026-07-08: exactly this made the haptics sink NULL inside the lib and
- * killed Remote Play rumble on iOS only — days of debugging.
+ * CMake build (e.g. a separately configured app project) see a DIFFERENT
+ * layout: the write lands at the wrong offset and silently no-ops. This once
+ * made the haptics sink NULL inside the lib and silently killed PS5 rumble.
  *
- * From ios/Pylux (or any non-CMake consumer): use the CHIAKI_EXPORT `_ex`
- * wrappers in lib/src/ios_bridge_helpers.c instead. ios/build.sh enforces
- * this with a lint that fails the build. When adding a setter here, add a
- * matching `_ex` wrapper there.
+ * The Xbox app (xbox/) must therefore consume the lib through the lib's own
+ * CMake target (add_subdirectory + target_link_libraries(chiaki-lib)), so it
+ * inherits the same compile definitions. Any consumer that can't do that must
+ * go through exported (non-inline) wrappers in lib/ instead of these setters.
  * ===========================================================================
  */
 static inline void chiaki_session_set_event_cb(ChiakiSession *session, ChiakiEventCallback cb, void *user)
