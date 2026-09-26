@@ -35,12 +35,13 @@ D2D1_COLOR_F Rgb(uint32_t rgb, float a = 1.0f)
 	return D2D1::ColorF(((rgb >> 16) & 0xff) / 255.0f, ((rgb >> 8) & 0xff) / 255.0f, (rgb & 0xff) / 255.0f, a);
 }
 
-const D2D1_COLOR_F kBackground = Rgb(0x101418);
-const D2D1_COLOR_F kPanel = Rgb(0x1a2028);
-const D2D1_COLOR_F kText = Rgb(0xe8edf2);
-const D2D1_COLOR_F kMuted = Rgb(0x8a96a3);
-const D2D1_COLOR_F kAccent = Rgb(0x2f9e6e);
-const D2D1_COLOR_F kActive = Rgb(0x3fcf8e);
+// Palette follows the XPort logo: neon green (#6ffc5a) on black.
+const D2D1_COLOR_F kBackground = Rgb(0x000000);
+const D2D1_COLOR_F kPanel = Rgb(0x0c130b);
+const D2D1_COLOR_F kText = Rgb(0xe8f5e6);
+const D2D1_COLOR_F kMuted = Rgb(0x8a9b88);
+const D2D1_COLOR_F kAccent = Rgb(0x2a8a1e); // fills behind light text (keeps it readable)
+const D2D1_COLOR_F kActive = Rgb(0x6ffc5a); // logo green: title, highlights, active state
 
 // How each Xbox control will map onto the DualShock/DualSense layout the console expects
 // (see the migration plan). Shown live so the mapping can be checked on real hardware.
@@ -251,13 +252,13 @@ private:
 		const float cw = W - 2 * mx;
 
 		float y = my;
-		renderer.Text(L"XPort", mx, y, cw, 70, xport::TextStyle::Title, kText);
+		renderer.Text(L"XPort", mx, y, cw, 70, xport::TextStyle::Title, kActive);
 		renderer.Text(Format(L"v%hs", XPORT_VERSION), mx + 175, y + 28, 300, 30, xport::TextStyle::Body, kMuted);
 		y += 72;
 		renderer.Text(L"PlayStation Remote Play for Xbox Series X|S  —  Milestone 1: app shell (Remote Play not wired in yet)",
 			mx, y, cw, 30, xport::TextStyle::Body, kMuted);
 		y += 34;
-		renderer.FillRect(mx, y, cw, 3, kAccent);
+		renderer.FillRect(mx, y, cw, 3, kActive);
 		y += 20;
 
 		const float col_gap = 24;
