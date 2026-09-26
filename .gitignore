@@ -58,7 +58,7 @@ chiaki.conf
 site/
 /gui/src/qml/qtwebengine_import.qml
 psstream_research/
-pylux_research/
+xport_research/
 .cursor/
 chiaki-ng-Win/
 chiaki_fastbuild_logs.txt
@@ -86,7 +86,6 @@ macos/fastlane/report.xml
 
 # Local Flatpak testing (throwaway, never commit)
 scripts/flatpak/test-flatpak-local.sh
-pylux-test.flatpak
 lib/test_cloudcatalog/.npsso
 
 # iOS build/run logs (build artifacts, never track)
@@ -110,3 +109,8 @@ build-ctrl/
 build-output-appstore-final/
 .playwright-mcp/
 docs/handoff/
+
+# XPort Xbox app: build tree and the local self-signed sideload signing cert (never track)
+/build-xbox/
+xbox/.cert/
+*.pfx
