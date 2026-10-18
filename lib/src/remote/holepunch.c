@@ -3604,57 +3604,92 @@ static ChiakiErrorCode get_client_addr_local(Session *session, Candidate *local_
     ChiakiErrorCode err = CHIAKI_ERR_SUCCESS;
     bool status = false;
 #ifdef _WIN32
-    // GetAdaptersAddresses rather than GetAdaptersInfo: the latter is unavailable to UWP (Xbox) apps.
-    // Same selection as before: Ethernet/Wi-Fi adapters only, first usable IPv4 address of each,
-    // stop at the first Wi-Fi match, otherwise keep the last Ethernet match.
-    PIP_ADAPTER_ADDRESSES adapters = NULL;
-    ULONG buf_len = 15 * 1024;
-    ULONG ret = ERROR_BUFFER_OVERFLOW;
-    bool ethernet = false;
-    for(int attempt = 0; attempt < 3 && ret == ERROR_BUFFER_OVERFLOW; attempt++)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+    // UWP (Xbox): no adapter enumeration API is available to C code. Ask the stack instead which
+    // local IPv4 address it would use for outbound traffic: connect() on a UDP socket only picks
+    // a route and sends nothing, then getsockname() returns the chosen local address.
+    (void)status;
+    chiaki_socket_t sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if(CHIAKI_SOCKET_IS_INVALID(sock))
     {
-        free(adapters);
-        adapters = malloc(buf_len);
-        if(!adapters)
-        {
-            CHIAKI_LOGE(session->log, "Error allocating memory needed to call GetAdaptersAddresses");
+        CHIAKI_LOGE(session->log, "Couldn't create socket to find the local address: " CHIAKI_SOCKET_ERROR_FMT, CHIAKI_SOCKET_ERROR_VALUE);
+        return CHIAKI_ERR_NETWORK;
+    }
+    struct sockaddr_in remote = { 0 };
+    remote.sin_family = AF_INET;
+    remote.sin_port = htons(53);
+    inet_pton(AF_INET, "8.8.8.8", &remote.sin_addr);
+    struct sockaddr_in local = { 0 };
+    socklen_t local_len = sizeof(local);
+    if(connect(sock, (struct sockaddr *)&remote, sizeof(remote)) != 0
+        || getsockname(sock, (struct sockaddr *)&local, &local_len) != 0
+        || local.sin_addr.s_addr == htonl(INADDR_ANY)
+        || !inet_ntop(AF_INET, &local.sin_addr, local_console_candidate->addr, sizeof(local_console_candidate->addr)))
+    {
+        CHIAKI_LOGE(session->log, "Couldn't find a valid local address: " CHIAKI_SOCKET_ERROR_FMT, CHIAKI_SOCKET_ERROR_VALUE);
+        CHIAKI_SOCKET_CLOSE(sock);
+        return CHIAKI_ERR_NETWORK;
+    }
+    CHIAKI_SOCKET_CLOSE(sock);
+    return err;
+#else // desktop Windows
+    PIP_ADAPTER_INFO pAdapterInfo;
+    PIP_ADAPTER_INFO pAdapter = NULL;
+#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
+#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
+    DWORD dwRetVal = 0;
+    bool ethernet = false;
+    ULONG ulOutBufLen = sizeof (IP_ADAPTER_INFO);
+    pAdapterInfo = (IP_ADAPTER_INFO *) MALLOC(sizeof (IP_ADAPTER_INFO));
+    if (pAdapterInfo == NULL) {
+        CHIAKI_LOGE(session->log, "Error allocating memory needed to call GetAdaptersinfo\n");
+        return CHIAKI_ERR_MEMORY;
+    }
+    if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW) {
+        FREE(pAdapterInfo);
+        pAdapterInfo = (IP_ADAPTER_INFO *) MALLOC(ulOutBufLen);
+        if (pAdapterInfo == NULL) {
+            CHIAKI_LOGE(session->log, "Error allocating memory needed to call GetAdaptersinfo\n");
             return CHIAKI_ERR_MEMORY;
         }
-        ret = GetAdaptersAddresses(AF_INET,
-            GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
-            NULL, adapters, &buf_len);
     }
 
-    if(ret == NO_ERROR)
-    {
-        for(PIP_ADAPTER_ADDRESSES adapter = adapters; adapter; adapter = adapter->Next)
-        {
-            if(adapter->IfType != IF_TYPE_IEEE80211 && adapter->IfType != IF_TYPE_ETHERNET_CSMACD)
-                continue;
-            if(adapter->OperStatus != IfOperStatusUp)
-                continue;
-            for(PIP_ADAPTER_UNICAST_ADDRESS ua = adapter->FirstUnicastAddress; ua; ua = ua->Next)
+    if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR) {
+        pAdapter = pAdapterInfo;
+        while (pAdapter) {
+            if(pAdapter->Type != IF_TYPE_IEEE80211 && pAdapter->Type != MIB_IF_TYPE_ETHERNET)
             {
-                if(!ua->Address.lpSockaddr || ua->Address.lpSockaddr->sa_family != AF_INET)
+                pAdapter = pAdapter->Next;
+                continue;
+            }
+            for(IP_ADDR_STRING *str = &pAdapter->IpAddressList; str != NULL; str = str->Next)
+            {
+                if(strcmp(str->IpAddress.String, "") == 0)
+                {
                     continue;
-                struct sockaddr_in *sin = (struct sockaddr_in *)ua->Address.lpSockaddr;
-                if(sin->sin_addr.s_addr == htonl(INADDR_ANY))
+                }
+                if(strcmp(str->IpAddress.String, "0.0.0.0") == 0)
+                {
                     continue;
-                if(!inet_ntop(AF_INET, &sin->sin_addr, local_console_candidate->addr, sizeof(local_console_candidate->addr)))
-                    continue;
+                }
+                memcpy(local_console_candidate->addr, str->IpAddress.String, strlen(str->IpAddress.String) + 1);
                 status = true;
-                ethernet = adapter->IfType == IF_TYPE_ETHERNET_CSMACD;
+                if(pAdapter->Type == MIB_IF_TYPE_ETHERNET)
+                    ethernet = true;
+                else
+                    ethernet = false;
                 break;
             }
             if(status && !ethernet)
                 break;
+            pAdapter = pAdapter->Next;
         }
+    } else {
+        CHIAKI_LOGE(session->log, "GetAdaptersInfo failed with error: %d\n", dwRetVal);
+
     }
-    else
-    {
-        CHIAKI_LOGE(session->log, "GetAdaptersAddresses failed with error: %lu", (unsigned long)ret);
-    }
-    free(adapters);
+    if (pAdapterInfo)
+        FREE(pAdapterInfo);
 
     if(!status)
     {
@@ -3662,6 +3697,9 @@ static ChiakiErrorCode get_client_addr_local(Session *session, Candidate *local_
         return CHIAKI_ERR_NETWORK;
     }
     return err;
+#undef MALLOC
+#undef FREE
+#endif // UWP / desktop Windows
 #elif defined(__SWITCH__)
     // switch does not have ifaddrs.h, use arpa/inet.h
     struct sockaddr_in addr;
