@@ -8,8 +8,8 @@
 **XPort is a free, open-source PlayStation Remote Play client for Xbox Series X|S, running as a UWP app in Xbox Dev Mode.**
 Stream your own PS4 or PS5 to the TV your Xbox is connected to and play it with an Xbox controller.
 
-> **Status: early development.** Milestone 1, a minimal Xbox app shell, is in place. Remote Play itself is not yet
-> wired into the Xbox app. See [ROADMAP.md](ROADMAP.md) for the phased plan and current progress.
+> **Status: early development.** The Xbox app runs with the Remote Play library built in (Phase 2), but cannot
+> find, pair with or stream from a console yet. See [ROADMAP.md](ROADMAP.md) for the phased plan and current progress.
 
 ## How it works
 

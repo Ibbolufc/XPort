@@ -26,7 +26,6 @@ jobs:
         run: |
           git submodule update --init --depth 1 \
             test/munit third-party/nanopb third-party/jerasure third-party/gf-complete third-party/curl
-          git apply --ignore-whitespace --verbose --directory=third-party/gf-complete scripts/windows-vc/gf-complete.patch
 
       - uses: actions/setup-python@v5
         with:
@@ -55,12 +54,19 @@ jobs:
       - name: Unit tests
         run: build-lib\test\chiaki-unit.exe
 
-  # Phase 1: minimal UWP app shell, packaged and signed for Xbox Dev Mode sideloading.
+  # The Xbox app (with lib/ built for UWP), packaged and signed for Xbox Dev Mode sideloading.
   xbox-app:
     name: Xbox app package (UWP x64)
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install protobuf tooling (nanopb generator + protoc via grpcio-tools)
+        run: python -m pip install "protobuf<4" "grpcio-tools<1.49"
 
       - name: Build + package
         shell: pwsh

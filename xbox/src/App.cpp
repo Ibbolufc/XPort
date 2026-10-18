@@ -8,6 +8,7 @@
 // Xbox Series X|S in Dev Mode before any Remote Play code (lib/) is linked in.
 
 #include "pch.h"
+#include "Core.h"
 #include "Log.h"
 #include "NetProbe.h"
 #include "Renderer.h"
@@ -42,6 +43,7 @@ const D2D1_COLOR_F kText = Rgb(0xe8f5e6);
 const D2D1_COLOR_F kMuted = Rgb(0x8a9b88);
 const D2D1_COLOR_F kAccent = Rgb(0x2a8a1e); // fills behind light text (keeps it readable)
 const D2D1_COLOR_F kActive = Rgb(0x6ffc5a); // logo green: title, highlights, active state
+const D2D1_COLOR_F kError = Rgb(0xff5a5a);
 
 // How each Xbox control will map onto the DualShock/DualSense layout the console expects
 // (see the migration plan). Shown live so the mapping can be checked on real hardware.
@@ -110,6 +112,7 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView>
 		xport::log::Init();
 		XLOG("XPort %s starting (Milestone 1 shell)", XPORT_VERSION);
 		XLOG("Log file: %ls", xport::log::FilePath().c_str());
+		core.Init();
 
 		view.Activated({this, &App::OnActivated});
 		CoreApplication::Suspending({this, &App::OnSuspending});
@@ -255,8 +258,10 @@ private:
 		renderer.Text(L"XPort", mx, y, cw, 70, xport::TextStyle::Title, kActive);
 		renderer.Text(Format(L"v%hs", XPORT_VERSION), mx + 175, y + 28, 300, 30, xport::TextStyle::Body, kMuted);
 		y += 72;
-		renderer.Text(L"PlayStation Remote Play for Xbox Series X|S  —  Milestone 1: app shell (Remote Play not wired in yet)",
+		renderer.Text(L"PlayStation Remote Play for Xbox Series X|S  —  Phase 2: Remote Play library linked (no streaming yet)",
 			mx, y, cw, 30, xport::TextStyle::Body, kMuted);
+		y += 32;
+		renderer.Text(Widen(core.Summary()), mx, y, cw, 30, xport::TextStyle::Body, core.Ok() ? kActive : kError);
 		y += 34;
 		renderer.FillRect(mx, y, cw, 3, kActive);
 		y += 20;
@@ -365,6 +370,7 @@ private:
 	}
 
 	xport::Renderer renderer;
+	xport::Core core;
 	xport::NetProbe probe;
 	bool closed = false;
 	bool visible = true;

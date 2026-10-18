@@ -104,6 +104,14 @@ if(CHIAKI_LIB_ENABLE_MBEDTLS)
 			GIT_PROGRESS TRUE
 		)
 		FetchContent_MakeAvailable(mbedtls)
+		if(WIN32)
+			# Windows/UWP overrides (BCryptGenRandom entropy, no file I/O): see the header.
+			# Public, so every consumer of the mbedTLS headers sees the same configuration.
+			foreach(_mbedtls_target mbedcrypto mbedx509 mbedtls)
+				target_include_directories(${_mbedtls_target} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/third-party/mbedtls-config")
+				target_compile_definitions(${_mbedtls_target} PUBLIC "MBEDTLS_USER_CONFIG_FILE=<xport_mbedtls_windows.h>")
+			endforeach()
+		endif()
 	endif()
 endif()
 

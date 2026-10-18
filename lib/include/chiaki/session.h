@@ -319,6 +319,12 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_session_keyboard_reject(ChiakiSession *sess
 CHIAKI_EXPORT ChiakiErrorCode chiaki_session_keyboard_accept(ChiakiSession *session);
 CHIAKI_EXPORT ChiakiErrorCode chiaki_session_go_home(ChiakiSession *session);
 
+/**
+ * sizeof(ChiakiSession) as compiled into the lib. Consumers compare it with their own
+ * sizeof(ChiakiSession) to detect a struct layout mismatch (see the warning below).
+ */
+CHIAKI_EXPORT size_t chiaki_session_sizeof(void);
+
 /*
  * ============================== WARNING ====================================
  * The `static inline` setters below dereference ChiakiSession fields, so they

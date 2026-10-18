@@ -1,16 +1,24 @@
 # XPort for Xbox Series X|S
 
-The UWP (x64) app that runs XPort on an Xbox in Developer Mode. Current state: **Milestone 1, the app shell**
-(see [../ROADMAP.md](../ROADMAP.md)). It renders a status screen, shows the live controller → PlayStation mapping,
-tests rumble, and can probe the LAN for PS4/PS5 consoles. It does not stream yet.
+The UWP (x64) app that runs XPort on an Xbox in Developer Mode. Current state: **Phase 2, Remote Play library
+linked** (see [../ROADMAP.md](../ROADMAP.md)). It renders a status screen with the library's startup self-test, shows
+the live controller → PlayStation mapping, tests rumble, and can probe the LAN for PS4/PS5 consoles. It does not
+stream yet.
 
 ## Build
 
 Requirements (Windows 10/11):
 
-- Visual Studio 2022 with **Universal Windows Platform development** and **C++ (v143) Universal Windows Platform tools**
+- Visual Studio 2022 with **Universal Windows Platform development**, **C++ (v143) Universal Windows Platform
+  tools**, **C++ Clang tools for Windows** and **C++ CMake tools for Windows**
 - Windows SDK 10.0.19041 or newer
-- CMake 3.20+ on `PATH`
+- CMake 3.20+ and Git on `PATH`
+- Python 3 on `PATH` with `python -m pip install "protobuf<4" "grpcio-tools<1.49"` (generates the protocol code)
+
+The script initialises the needed git submodules and loads the Visual Studio developer environment by itself. It
+builds in two steps: `xbox/core` (Ninja + clang-cl) compiles the Remote Play library and its dependencies for UWP
+into `build-xbox\core-<Config>`, then the Visual Studio UWP project builds the app and imports the core through the
+generated `xport-core.cmake`.
 
 ```powershell
 .\xbox\build.ps1            # configure + build + signed package (Release)
@@ -60,7 +68,9 @@ The last few lines are also shown on screen.
 | `src/App.cpp` | `IFrameworkView`: lifecycle, main loop, input handling, screen layout |
 | `src/Renderer.*` | D3D11 device + CoreWindow swap chain, Direct2D/DirectWrite drawing, device-lost handling |
 | `src/NetProbe.*` | Phase 1 network spike: PS4/PS5 discovery broadcast with Winsock |
+| `src/Core.*` | Owns the Remote Play library: init, log routing, startup self-test |
 | `src/Log.*` | File + debugger logging |
 | `Package.appxmanifest.in` | Package identity, device families (`Windows.Universal`, `Windows.Xbox`), capabilities |
 | `Assets/` | Tile and splash images, generated from the XPort logo (`xport-logo.png`) |
-| `build.ps1` | Configure / build / package / sign |
+| `core/CMakeLists.txt` | Builds `lib/` + dependencies for UWP with clang-cl and exports `xport-core.cmake` |
+| `build.ps1` | Core build / configure / build / package / sign |

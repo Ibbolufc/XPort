@@ -36,6 +36,10 @@ if(NOT CHIAKI_USE_SYSTEM_JERASURE)
 
 	add_library(gf_complete STATIC ${GF_COMPLETE_SOURCE})
 	target_include_directories(gf_complete PUBLIC gf-complete/include)
+	if(MSVC)
+		# gf_cpu.c uses __cpuidex without including <intrin.h> on MSVC/clang-cl
+		target_compile_options(gf_complete PRIVATE /FIintrin.h)
+	endif()
 
 	##################
 	# jerasure
@@ -61,13 +65,24 @@ if (NOT CHIAKI_IS_SWITCH)
 		# libcurl (with experimental WebSocket support enabled)
 		##################
 		set(BUILD_EXE OFF)
+		set(BUILD_CURL_EXE OFF) # only libcurl is used; the curl tool doesn't build for UWP
 		set(BUILD_SHARED_LIBS OFF)
 		set(BUILD_STATIC_LIBS ON)
 		set(CURL_DISABLE_INSTALL ON)
 		set(HTTP_ONLY ON)
 		set(ENABLE_WEBSOCKETS ON)
-		if(WIN32)
-			# Windows / Xbox: Schannel, i.e. the system trust store (no CA bundle needed)
+		if(CHIAKI_TARGET_UWP)
+			# UWP/Xbox: Schannel needs SSPI, which the UWP API partition doesn't expose, so curl is
+			# built without TLS for now. Nothing on the LAN Remote Play path uses curl; HTTPS (PSN
+			# sign-in, Internet/Cloud play) is an open decision for ROADMAP Phase 7.
+			set(CURL_ENABLE_SSL OFF)
+			set(CURL_WINDOWS_SSPI OFF)
+			# Our core build targets the UWP API partition via WINAPI_FAMILY, not via
+			# CMAKE_SYSTEM_NAME=WindowsStore, so tell curl explicitly: it then avoids the
+			# desktop-only CryptoAPI (NTLM/MD4/MD5/SHA-256/random) and Win32 LDAP.
+			set(WINDOWS_STORE ON)
+		elseif(WIN32)
+			# Windows: Schannel, i.e. the system trust store (no CA bundle needed)
 			set(USE_SSLEAY ON)
 			set(CURL_USE_SCHANNEL ON)
 		endif()
@@ -84,6 +99,9 @@ if (NOT CHIAKI_IS_SWITCH)
 			set(Libidn2_FOUND ON)
 		endif()
 		add_subdirectory(curl)
+		if(CHIAKI_TARGET_UWP)
+			unset(WINDOWS_STORE)
+		endif()
 		# Exported library is CURL::libcurl_static
 	endif()
 endif()
@@ -117,6 +135,10 @@ if(CHIAKI_LIB_FETCH_DEPS)
 		SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c  # Name it json-c so includes work
 	)
 	FetchContent_MakeAvailable(jsonc)
+	if(CHIAKI_TARGET_UWP)
+		# json-c's random seed uses desktop-only CryptoAPI calls; see the header.
+		target_compile_options(json-c PRIVATE "/FI${CMAKE_CURRENT_SOURCE_DIR}/uwp-compat/xport_jsonc_uwp.h")
+	endif()
 	# json.h is generated into the json-c build dir; place it beside the other headers so
 	# <json-c/json.h> resolves (used by the unit tests).
 	configure_file("${jsonc_BINARY_DIR}/json.h" "${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c/json.h" COPYONLY)

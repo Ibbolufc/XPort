@@ -20,7 +20,7 @@
 #include <process.h>
 #include <windows.h>
 #define cc_mkdir(p) _mkdir(p)
-#define cc_getpid() _getpid()
+#define cc_getpid() GetCurrentProcessId() // _getpid is unavailable to UWP apps
 // Windows rename() refuses to overwrite an existing destination (POSIX replaces it),
 // so a plain rename would fail every cache REWRITE. MoveFileEx with REPLACE_EXISTING
 // is the atomic-replace equivalent.

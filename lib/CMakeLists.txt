@@ -106,6 +106,11 @@ set(SOURCE_FILES
 		src/remote/rudp.c
 		src/remote/rudpsendbuffer.c)
 
+if(WIN32 AND CHIAKI_LIB_ENABLE_MBEDTLS)
+	# BCryptGenRandom entropy for mbedTLS (CryptGenRandom is unavailable to UWP apps)
+	list(APPEND SOURCE_FILES src/mbedtls_entropy_win32.c)
+endif()
+
 if(CHIAKI_ENABLE_FFMPEG_DECODER)
 	list(APPEND HEADER_FILES include/chiaki/ffmpegdecoder.h)
 	list(APPEND SOURCE_FILES src/ffmpegdecoder.c)
@@ -129,6 +134,11 @@ endif()
 
 add_library(chiaki-lib ${HEADER_FILES} ${SOURCE_FILES} ${CHIAKI_LIB_PROTO_SOURCE_FILES} ${CHIAKI_LIB_PROTO_HEADER_FILES})
 configure_file(config.h.in include/chiaki/config.h)
+if(CHIAKI_LIB_ENABLE_MBEDTLS)
+	# Public: ChiakiECDH (embedded in ChiakiSession) has a different layout under mbedTLS, so
+	# every consumer must see this definition, not just code under the root directory.
+	target_compile_definitions(chiaki-lib PUBLIC CHIAKI_LIB_ENABLE_MBEDTLS)
+endif()
 target_include_directories(chiaki-lib PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
 # Expose protobuf include directory so targets linking to chiaki-lib can use takion.pb.h
 target_include_directories(chiaki-lib PUBLIC "${CHIAKI_LIB_PROTO_INCLUDE_DIR}")

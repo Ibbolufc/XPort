@@ -3604,6 +3604,35 @@ static ChiakiErrorCode get_client_addr_local(Session *session, Candidate *local_
     ChiakiErrorCode err = CHIAKI_ERR_SUCCESS;
     bool status = false;
 #ifdef _WIN32
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+    // UWP (Xbox): no adapter enumeration API is available to C code. Ask the stack instead which
+    // local IPv4 address it would use for outbound traffic: connect() on a UDP socket only picks
+    // a route and sends nothing, then getsockname() returns the chosen local address.
+    (void)status;
+    chiaki_socket_t sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if(CHIAKI_SOCKET_IS_INVALID(sock))
+    {
+        CHIAKI_LOGE(session->log, "Couldn't create socket to find the local address: " CHIAKI_SOCKET_ERROR_FMT, CHIAKI_SOCKET_ERROR_VALUE);
+        return CHIAKI_ERR_NETWORK;
+    }
+    struct sockaddr_in remote = { 0 };
+    remote.sin_family = AF_INET;
+    remote.sin_port = htons(53);
+    inet_pton(AF_INET, "8.8.8.8", &remote.sin_addr);
+    struct sockaddr_in local = { 0 };
+    socklen_t local_len = sizeof(local);
+    if(connect(sock, (struct sockaddr *)&remote, sizeof(remote)) != 0
+        || getsockname(sock, (struct sockaddr *)&local, &local_len) != 0
+        || local.sin_addr.s_addr == htonl(INADDR_ANY)
+        || !inet_ntop(AF_INET, &local.sin_addr, local_console_candidate->addr, sizeof(local_console_candidate->addr)))
+    {
+        CHIAKI_LOGE(session->log, "Couldn't find a valid local address: " CHIAKI_SOCKET_ERROR_FMT, CHIAKI_SOCKET_ERROR_VALUE);
+        CHIAKI_SOCKET_CLOSE(sock);
+        return CHIAKI_ERR_NETWORK;
+    }
+    CHIAKI_SOCKET_CLOSE(sock);
+    return err;
+#else // desktop Windows
     PIP_ADAPTER_INFO pAdapterInfo;
     PIP_ADAPTER_INFO pAdapter = NULL;
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
@@ -3670,6 +3699,7 @@ static ChiakiErrorCode get_client_addr_local(Session *session, Candidate *local_
     return err;
 #undef MALLOC
 #undef FREE
+#endif // UWP / desktop Windows
 #elif defined(__SWITCH__)
     // switch does not have ifaddrs.h, use arpa/inet.h
     struct sockaddr_in addr;
