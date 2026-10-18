@@ -3604,63 +3604,57 @@ static ChiakiErrorCode get_client_addr_local(Session *session, Candidate *local_
     ChiakiErrorCode err = CHIAKI_ERR_SUCCESS;
     bool status = false;
 #ifdef _WIN32
-    PIP_ADAPTER_INFO pAdapterInfo;
-    PIP_ADAPTER_INFO pAdapter = NULL;
-#define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
-#define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
-    DWORD dwRetVal = 0;
+    // GetAdaptersAddresses rather than GetAdaptersInfo: the latter is unavailable to UWP (Xbox) apps.
+    // Same selection as before: Ethernet/Wi-Fi adapters only, first usable IPv4 address of each,
+    // stop at the first Wi-Fi match, otherwise keep the last Ethernet match.
+    PIP_ADAPTER_ADDRESSES adapters = NULL;
+    ULONG buf_len = 15 * 1024;
+    ULONG ret = ERROR_BUFFER_OVERFLOW;
     bool ethernet = false;
-    ULONG ulOutBufLen = sizeof (IP_ADAPTER_INFO);
-    pAdapterInfo = (IP_ADAPTER_INFO *) MALLOC(sizeof (IP_ADAPTER_INFO));
-    if (pAdapterInfo == NULL) {
-        CHIAKI_LOGE(session->log, "Error allocating memory needed to call GetAdaptersinfo\n");
-        return CHIAKI_ERR_MEMORY;
-    }
-    if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) == ERROR_BUFFER_OVERFLOW) {
-        FREE(pAdapterInfo);
-        pAdapterInfo = (IP_ADAPTER_INFO *) MALLOC(ulOutBufLen);
-        if (pAdapterInfo == NULL) {
-            CHIAKI_LOGE(session->log, "Error allocating memory needed to call GetAdaptersinfo\n");
+    for(int attempt = 0; attempt < 3 && ret == ERROR_BUFFER_OVERFLOW; attempt++)
+    {
+        free(adapters);
+        adapters = malloc(buf_len);
+        if(!adapters)
+        {
+            CHIAKI_LOGE(session->log, "Error allocating memory needed to call GetAdaptersAddresses");
             return CHIAKI_ERR_MEMORY;
         }
+        ret = GetAdaptersAddresses(AF_INET,
+            GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST | GAA_FLAG_SKIP_DNS_SERVER,
+            NULL, adapters, &buf_len);
     }
 
-    if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR) {
-        pAdapter = pAdapterInfo;
-        while (pAdapter) {
-            if(pAdapter->Type != IF_TYPE_IEEE80211 && pAdapter->Type != MIB_IF_TYPE_ETHERNET)
-            {
-                pAdapter = pAdapter->Next;
+    if(ret == NO_ERROR)
+    {
+        for(PIP_ADAPTER_ADDRESSES adapter = adapters; adapter; adapter = adapter->Next)
+        {
+            if(adapter->IfType != IF_TYPE_IEEE80211 && adapter->IfType != IF_TYPE_ETHERNET_CSMACD)
                 continue;
-            }
-            for(IP_ADDR_STRING *str = &pAdapter->IpAddressList; str != NULL; str = str->Next)
+            if(adapter->OperStatus != IfOperStatusUp)
+                continue;
+            for(PIP_ADAPTER_UNICAST_ADDRESS ua = adapter->FirstUnicastAddress; ua; ua = ua->Next)
             {
-                if(strcmp(str->IpAddress.String, "") == 0)
-                {
+                if(!ua->Address.lpSockaddr || ua->Address.lpSockaddr->sa_family != AF_INET)
                     continue;
-                }
-                if(strcmp(str->IpAddress.String, "0.0.0.0") == 0)
-                {
+                struct sockaddr_in *sin = (struct sockaddr_in *)ua->Address.lpSockaddr;
+                if(sin->sin_addr.s_addr == htonl(INADDR_ANY))
                     continue;
-                }
-                memcpy(local_console_candidate->addr, str->IpAddress.String, strlen(str->IpAddress.String) + 1);
+                if(!inet_ntop(AF_INET, &sin->sin_addr, local_console_candidate->addr, sizeof(local_console_candidate->addr)))
+                    continue;
                 status = true;
-                if(pAdapter->Type == MIB_IF_TYPE_ETHERNET)
-                    ethernet = true;
-                else
-                    ethernet = false;
+                ethernet = adapter->IfType == IF_TYPE_ETHERNET_CSMACD;
                 break;
             }
             if(status && !ethernet)
                 break;
-            pAdapter = pAdapter->Next;
         }
-    } else {
-        CHIAKI_LOGE(session->log, "GetAdaptersInfo failed with error: %d\n", dwRetVal);
-
     }
-    if (pAdapterInfo)
-        FREE(pAdapterInfo);
+    else
+    {
+        CHIAKI_LOGE(session->log, "GetAdaptersAddresses failed with error: %lu", (unsigned long)ret);
+    }
+    free(adapters);
 
     if(!status)
     {
@@ -3668,8 +3662,6 @@ static ChiakiErrorCode get_client_addr_local(Session *session, Candidate *local_
         return CHIAKI_ERR_NETWORK;
     }
     return err;
-#undef MALLOC
-#undef FREE
 #elif defined(__SWITCH__)
     // switch does not have ifaddrs.h, use arpa/inet.h
     struct sockaddr_in addr;

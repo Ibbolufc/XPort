@@ -65,6 +65,7 @@ if (NOT CHIAKI_IS_SWITCH)
 		# libcurl (with experimental WebSocket support enabled)
 		##################
 		set(BUILD_EXE OFF)
+		set(BUILD_CURL_EXE OFF) # only libcurl is used; the curl tool doesn't build for UWP
 		set(BUILD_SHARED_LIBS OFF)
 		set(BUILD_STATIC_LIBS ON)
 		set(CURL_DISABLE_INSTALL ON)
