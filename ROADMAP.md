@@ -8,7 +8,7 @@ it.** The Xbox app only maps platform inputs and outputs (controllers, video, au
 |---|---|---|
 | 0 | `lib/` builds and passes its unit tests with the MSVC ABI (clang-cl) | **done**: 126/126 tests pass on Windows x64 in CI |
 | 1 | Minimal UWP app launches on Xbox (**Milestone 1**) | **built**: signed package from CI; waiting on the on-console check |
-| 2 | `lib/` compiled for UWP and linked into the app | planned |
+| 2 | `lib/` compiled for UWP and linked into the app | **built**: CI compiles and links it; waiting on the on-console self-test |
 | 3 | LAN discovery, wake and registration | planned |
 | 4 | Remote Play session with video | planned |
 | 5 | Audio, full controller input, rumble/haptics | planned |
@@ -47,14 +47,17 @@ Exit criteria (on a real Xbox Series X|S in Dev Mode, app type set to "Game"):
 
 ## Phase 2: `lib/` inside the UWP app
 
-- Configure `lib/` with `CMAKE_SYSTEM_NAME=WindowsStore`, consumed by `xbox/CMakeLists.txt` via
-  `add_subdirectory` (so the app sees the lib's exact struct layout, see the warning in `session.h`).
-- mbedTLS for crypto (verify its Windows entropy source is UWP-allowed; otherwise add a `BCryptGenRandom` hook),
-  curl with Schannel, json-c/miniupnpc/opus via `CHIAKI_LIB_FETCH_DEPS`.
-- Fix any API that is not in the UWP app partition behind guards in `lib/` (candidates: `InitializeCriticalSection`,
-  `MoveFileExA`, `GetAdaptersInfo`, `SetThreadDescription`).
-- Route `ChiakiLog` into the app log; call `chiaki_lib_init()` at startup.
-- Exit: the app launches on Xbox with `lib/` linked and logs the lib version.
+- Done: Visual Studio's UWP projects can't use the ClangCL toolset (MSB8020), so `xbox/core` builds `lib/` and
+  its dependencies separately with Ninja + clang-cl, compiled with `WINAPI_FAMILY=WINAPI_FAMILY_APP` so any
+  desktop-only Win32 call fails at compile time. It generates `xport-core.cmake` from `chiaki-lib`'s link graph:
+  the static libraries, include directories and the exact interface compile definitions, which the app imports.
+- Done: `chiaki-lib` exports `CHIAKI_LIB_ENABLE_MBEDTLS` publicly (it changes `ChiakiSession`'s layout) and has
+  `chiaki_session_sizeof()`; the app compares it with its own `sizeof(ChiakiSession)` at startup.
+- Done: mbedTLS on Windows uses `third-party/mbedtls-config/xport_mbedtls_windows.h`: entropy from
+  `BCryptGenRandom` (`CryptGenRandom` is unavailable to UWP apps) and no file I/O (desktop-only calls, unused).
+- Done: the app's `Core` module calls `chiaki_lib_init()`, routes `ChiakiLog` into `xport.log`, and shows a startup
+  self-test: lib init, struct layout, entropy, secp256k1 ECDH (the session handshake's key exchange).
+- Exit criterion (on the console): the app launches with `lib/` linked and the on-screen self-test passes.
 
 ## Phase 3: discovery, wake, registration (LAN)
 

@@ -9,17 +9,23 @@ Remote Play protocol; `xbox/` is the native UWP frontend. The phased plan and cu
   (controllers, video, audio, storage, UI).
 - **DON'T** rewrite protocol code; reuse `lib/`. Keep `lib/` edits minimal and guarded so chiaki-ng fixes stay
   cherry-pickable (diff suspect files against `upstream/main` when debugging).
-- **DO** consume `lib/` from the Xbox app through its CMake target (`add_subdirectory`), never by compiling lib
-  headers under a different configuration: `ChiakiSession`'s layout depends on lib compile definitions and the
-  `static inline` setters in `session.h` silently write to the wrong offset otherwise.
+- **DO** consume `lib/` from the Xbox app only through `xbox/core`'s generated `xport-core.cmake`, never by
+  compiling lib headers under a different configuration: `ChiakiSession`'s layout depends on lib compile
+  definitions and the `static inline` setters in `session.h` silently write to the wrong offset otherwise. A
+  definition that changes a public struct must be a PUBLIC compile definition on `chiaki-lib`. The app checks
+  `chiaki_session_sizeof()` against its own `sizeof(ChiakiSession)` at startup.
 
 ## Toolchain facts
-- UWP needs the MSVC toolchain family. `lib/` is built with **clang-cl** (MSVC ABI); the app with MSVC via the
-  Visual Studio generator and `CMAKE_SYSTEM_NAME=WindowsStore`.
+- UWP needs the MSVC toolchain family. `lib/` is built with **clang-cl** (MSVC ABI) by `xbox/core` (Ninja);
+  the app with cl.exe via the Visual Studio generator and `CMAKE_SYSTEM_NAME=WindowsStore`. VS UWP projects
+  can't use the ClangCL toolset (MSB8020), hence the two-step build in `xbox/build.ps1`.
+- The core compiles with `WINAPI_FAMILY=WINAPI_FAMILY_APP`: a desktop-only Win32 call is a compile error.
+  Fix it behind a guard in `lib/`, or by configuration for a dependency.
 - MSVC/UCRT lacks POSIX headers: use `lib/src/compat_strings.h` instead of `<strings.h>`; guard other POSIX-only
   calls with `_WIN32`/`_MSC_VER`.
 - `CHIAKI_LIB_FETCH_DEPS` (default ON for MSVC/WindowsStore) builds json-c, miniupnpc and opus from source.
-- Use **mbedTLS** for lib crypto on Windows/Xbox; curl uses Schannel (system trust store).
+- Use **mbedTLS** for lib crypto on Windows/Xbox; curl uses Schannel (system trust store). Windows mbedTLS
+  settings live in `third-party/mbedtls-config/xport_mbedtls_windows.h` (BCryptGenRandom entropy, no file I/O).
 
 ## Build / verify
 - Xbox app: `.\xbox\build.ps1` (`configure|build|package|clean`); read its header, it documents deploy and logs.
