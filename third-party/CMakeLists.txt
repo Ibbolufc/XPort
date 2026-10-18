@@ -76,6 +76,10 @@ if (NOT CHIAKI_IS_SWITCH)
 			# sign-in, Internet/Cloud play) is an open decision for ROADMAP Phase 7.
 			set(CURL_ENABLE_SSL OFF)
 			set(CURL_WINDOWS_SSPI OFF)
+			# Our core build targets the UWP API partition via WINAPI_FAMILY, not via
+			# CMAKE_SYSTEM_NAME=WindowsStore, so tell curl explicitly: it then avoids the
+			# desktop-only CryptoAPI (NTLM/MD4/MD5/SHA-256/random) and Win32 LDAP.
+			set(WINDOWS_STORE ON)
 		elseif(WIN32)
 			# Windows: Schannel, i.e. the system trust store (no CA bundle needed)
 			set(USE_SSLEAY ON)
@@ -94,6 +98,9 @@ if (NOT CHIAKI_IS_SWITCH)
 			set(Libidn2_FOUND ON)
 		endif()
 		add_subdirectory(curl)
+		if(CHIAKI_TARGET_UWP)
+			unset(WINDOWS_STORE)
+		endif()
 		# Exported library is CURL::libcurl_static
 	endif()
 endif()
