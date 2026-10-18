@@ -134,6 +134,10 @@ if(CHIAKI_LIB_FETCH_DEPS)
 		SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c  # Name it json-c so includes work
 	)
 	FetchContent_MakeAvailable(jsonc)
+	if(CHIAKI_TARGET_UWP)
+		# json-c's random seed uses desktop-only CryptoAPI calls; see the header.
+		target_compile_options(json-c PRIVATE "/FI${CMAKE_CURRENT_SOURCE_DIR}/uwp-compat/xport_jsonc_uwp.h")
+	endif()
 	# json.h is generated into the json-c build dir; place it beside the other headers so
 	# <json-c/json.h> resolves (used by the unit tests).
 	configure_file("${jsonc_BINARY_DIR}/json.h" "${CMAKE_CURRENT_BINARY_DIR}/_deps/json-c/json.h" COPYONLY)

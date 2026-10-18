@@ -120,7 +120,8 @@ function Build-Core {
 			# fetched dependencies (mbedTLS 2.28) declare very old cmake_minimum_required versions
 			'-DCMAKE_POLICY_VERSION_MINIMUM=3.5')
 	}
-	Invoke-Checked 'cmake' @('--build', $CoreDir)
+	# -k 0: report every failing file in one run instead of stopping at the first
+	Invoke-Checked 'cmake' @('--build', $CoreDir, '--', '-k', '0')
 }
 
 function Invoke-Configure {
