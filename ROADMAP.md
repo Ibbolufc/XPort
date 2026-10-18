@@ -57,6 +57,9 @@ Exit criteria (on a real Xbox Series X|S in Dev Mode, app type set to "Game"):
   `BCryptGenRandom` (`CryptGenRandom` is unavailable to UWP apps) and no file I/O (desktop-only calls, unused).
 - Done: the app's `Core` module calls `chiaki_lib_init()`, routes `ChiakiLog` into `xport.log`, and shows a startup
   self-test: lib init, struct layout, entropy, secp256k1 ECDH (the session handshake's key exchange).
+- Note: curl is built **without TLS** for UWP for now. Schannel needs SSPI, which the UWP API partition doesn't
+  expose. Nothing on the LAN path uses curl; HTTPS is decided in Phase 7 (options: curl on mbedTLS with a bundled
+  CA store, or `Windows.Web.Http`).
 - Exit criterion (on the console): the app launches with `lib/` linked and the on-screen self-test passes.
 
 ## Phase 3: discovery, wake, registration (LAN)

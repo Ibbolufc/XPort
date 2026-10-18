@@ -19,6 +19,8 @@ if(NOT MSVC OR NOT CMAKE_C_COMPILER_ID STREQUAL "Clang")
 	message(FATAL_ERROR "xbox/core must be built with clang-cl (use xbox/build.ps1)")
 endif()
 
+# Tells lib/ and third-party/ CMake that the target is UWP (Xbox)
+set(CHIAKI_TARGET_UWP ON)
 set(CHIAKI_ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 set(CHIAKI_ENABLE_CLI OFF CACHE BOOL "" FORCE)
 set(CHIAKI_ENABLE_FFMPEG_DECODER OFF CACHE STRING "" FORCE) # video decoding lands in Phase 4

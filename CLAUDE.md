@@ -26,6 +26,8 @@ Remote Play protocol; `xbox/` is the native UWP frontend. The phased plan and cu
 - `CHIAKI_LIB_FETCH_DEPS` (default ON for MSVC/WindowsStore) builds json-c, miniupnpc and opus from source.
 - Use **mbedTLS** for lib crypto on Windows/Xbox; curl uses Schannel (system trust store). Windows mbedTLS
   settings live in `third-party/mbedtls-config/xport_mbedtls_windows.h` (BCryptGenRandom entropy, no file I/O).
+- On UWP (`CHIAKI_TARGET_UWP`, set by `xbox/core`) curl has no TLS yet: Schannel needs SSPI, unavailable to
+  UWP apps. Don't put curl on the LAN Remote Play path.
 
 ## Build / verify
 - Xbox app: `.\xbox\build.ps1` (`configure|build|package|clean`); read its header, it documents deploy and logs.

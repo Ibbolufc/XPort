@@ -70,8 +70,14 @@ if (NOT CHIAKI_IS_SWITCH)
 		set(CURL_DISABLE_INSTALL ON)
 		set(HTTP_ONLY ON)
 		set(ENABLE_WEBSOCKETS ON)
-		if(WIN32)
-			# Windows / Xbox: Schannel, i.e. the system trust store (no CA bundle needed)
+		if(CHIAKI_TARGET_UWP)
+			# UWP/Xbox: Schannel needs SSPI, which the UWP API partition doesn't expose, so curl is
+			# built without TLS for now. Nothing on the LAN Remote Play path uses curl; HTTPS (PSN
+			# sign-in, Internet/Cloud play) is an open decision for ROADMAP Phase 7.
+			set(CURL_ENABLE_SSL OFF)
+			set(CURL_WINDOWS_SSPI OFF)
+		elseif(WIN32)
+			# Windows: Schannel, i.e. the system trust store (no CA bundle needed)
 			set(USE_SSLEAY ON)
 			set(CURL_USE_SCHANNEL ON)
 		endif()
