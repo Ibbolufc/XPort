@@ -4,7 +4,8 @@
 //
 // mbedTLS 2.x gathers platform entropy on Windows with CryptAcquireContext/CryptGenRandom,
 // which are not available to UWP apps. Windows builds therefore compile mbedTLS with
-// MBEDTLS_NO_PLATFORM_ENTROPY + MBEDTLS_ENTROPY_HARDWARE_ALT (see the root CMakeLists.txt),
+// MBEDTLS_NO_PLATFORM_ENTROPY + MBEDTLS_ENTROPY_HARDWARE_ALT
+// (third-party/mbedtls-config/xport_mbedtls_windows.h),
 // and this file provides the hardware entropy hook on top of BCryptGenRandom, which is
 // available to both desktop and UWP apps. mbedTLS registers it as a strong source.
 

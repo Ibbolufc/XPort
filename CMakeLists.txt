@@ -105,9 +105,12 @@ if(CHIAKI_LIB_ENABLE_MBEDTLS)
 		)
 		FetchContent_MakeAvailable(mbedtls)
 		if(WIN32)
-			# mbedTLS's own Windows entropy (CryptGenRandom) is unavailable to UWP apps; use the
-			# BCryptGenRandom hook in lib/src/mbedtls_entropy_win32.c on all Windows builds instead.
-			target_compile_definitions(mbedcrypto PRIVATE MBEDTLS_NO_PLATFORM_ENTROPY MBEDTLS_ENTROPY_HARDWARE_ALT)
+			# Windows/UWP overrides (BCryptGenRandom entropy, no file I/O): see the header.
+			# Public, so every consumer of the mbedTLS headers sees the same configuration.
+			foreach(_mbedtls_target mbedcrypto mbedx509 mbedtls)
+				target_include_directories(${_mbedtls_target} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/third-party/mbedtls-config")
+				target_compile_definitions(${_mbedtls_target} PUBLIC "MBEDTLS_USER_CONFIG_FILE=<xport_mbedtls_windows.h>")
+			endforeach()
 		endif()
 	endif()
 endif()
