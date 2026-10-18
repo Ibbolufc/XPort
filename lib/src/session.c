@@ -1398,3 +1398,8 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_session_go_home(ChiakiSession *session)
 	err = ctrl_message_go_home(&session->ctrl);
 	return err;
 }
+
+CHIAKI_EXPORT size_t chiaki_session_sizeof(void)
+{
+	return sizeof(ChiakiSession);
+}

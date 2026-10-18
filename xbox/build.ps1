@@ -16,10 +16,14 @@
     -BuildDir <path>                  # default <repo>\build-xbox
 
   Requirements:
-    - Visual Studio 2022 with the "Universal Windows Platform development" workload
-      and "C++ (v143) Universal Windows Platform tools"
+    - Visual Studio 2022 with the "Universal Windows Platform development" workload,
+      "C++ (v143) Universal Windows Platform tools" and "C++ Clang tools for Windows"
+      (the Remote Play library is built with clang-cl via the ClangCL toolset)
     - Windows 10/11 SDK 10.0.19041 or newer
-    - CMake 3.20+ on PATH
+    - CMake 3.20+ and Git on PATH
+    - Python 3 on PATH with protobuf tooling (generates the protocol code):
+        python -m pip install "protobuf<4" "grpcio-tools<1.49"
+    Required git submodules are initialised automatically.
 
   Output:
     <BuildDir>\AppPackages\XPort_<version>_x64_Test\
@@ -65,10 +69,23 @@ function Invoke-Checked([string]$exe, [string[]]$arguments) {
 	if ($LASTEXITCODE -ne 0) { throw "$exe failed with exit code $LASTEXITCODE" }
 }
 
+function Initialize-Prerequisites {
+	# Submodules the Remote Play library needs (cheap no-op once checked out).
+	Invoke-Checked 'git' @('-C', $RepoRoot, 'submodule', 'update', '--init', '--depth', '1',
+		'third-party/nanopb', 'third-party/jerasure', 'third-party/gf-complete', 'third-party/curl')
+	& python -c "import google.protobuf, grpc_tools" 2>$null
+	if ($LASTEXITCODE -ne 0) {
+		throw 'Python protobuf tooling missing. Run: python -m pip install "protobuf<4" "grpcio-tools<1.49"'
+	}
+}
+
 function Invoke-Configure {
+	Initialize-Prerequisites
 	Invoke-Checked 'cmake' @('-S', $XboxDir, '-B', $BuildDir,
-		'-G', 'Visual Studio 17 2022', '-A', 'x64',
+		'-G', 'Visual Studio 17 2022', '-A', 'x64', '-T', 'ClangCL',
 		'-DCMAKE_SYSTEM_NAME=WindowsStore', '-DCMAKE_SYSTEM_VERSION=10.0',
+		# fetched dependencies (mbedTLS 2.28) declare very old cmake_minimum_required versions
+		'-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
 		"-DXPORT_PUBLISHER=$Publisher")
 }
 

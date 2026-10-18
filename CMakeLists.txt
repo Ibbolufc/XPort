@@ -104,6 +104,11 @@ if(CHIAKI_LIB_ENABLE_MBEDTLS)
 			GIT_PROGRESS TRUE
 		)
 		FetchContent_MakeAvailable(mbedtls)
+		if(WIN32)
+			# mbedTLS's own Windows entropy (CryptGenRandom) is unavailable to UWP apps; use the
+			# BCryptGenRandom hook in lib/src/mbedtls_entropy_win32.c on all Windows builds instead.
+			target_compile_definitions(mbedcrypto PRIVATE MBEDTLS_NO_PLATFORM_ENTROPY MBEDTLS_ENTROPY_HARDWARE_ALT)
+		endif()
 	endif()
 endif()
 

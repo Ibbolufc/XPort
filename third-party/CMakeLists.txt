@@ -36,6 +36,10 @@ if(NOT CHIAKI_USE_SYSTEM_JERASURE)
 
 	add_library(gf_complete STATIC ${GF_COMPLETE_SOURCE})
 	target_include_directories(gf_complete PUBLIC gf-complete/include)
+	if(MSVC)
+		# gf_cpu.c uses __cpuidex without including <intrin.h> on MSVC/clang-cl
+		target_compile_options(gf_complete PRIVATE /FIintrin.h)
+	endif()
 
 	##################
 	# jerasure
